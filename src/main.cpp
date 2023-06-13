@@ -4,8 +4,8 @@
 #include <stdio.h>
 #include <thread>
 
-const int init_screen_width = 640;
-const int init_screen_height = 480;
+const int init_screen_width = 2000;
+const int init_screen_height = 1000;
 
 class Renderer {
 public:
@@ -14,7 +14,7 @@ public:
   void stop();
   float fps; // TODO move to private and add get method
   // TODO move to private and add get/set methods
-  int fps_delay = 15; // WIP
+  int fps_delay = 10000; // WIP
 
 private:
   void renderJob();
@@ -60,29 +60,52 @@ void Renderer::render() {
   int rendersize = 128;
   // TODO layer rendering
   SDL_RenderClear(rRenderer);
+  int map[5][10] = {{1, 0, 1, 0, 1, 0, 0, 0, 0, 0},
+                    {1, 0, 1, 0, 1, 0, 1, 0, 0, 1},
+                    {1, 1, 1, 0, 1, 0, 0, 0, 0, 0},
+                    {1, 0, 1, 0, 1, 0, 1, 0, 0, 1},
+                    {1, 0, 1, 0, 1, 0, 0, 1, 1, 0}};
   // TODO optimize rendering by loading required assets to RAM
-  SDL_Surface *image = SDL_LoadBMP("./assets/tiles/sea_tile.bmp");
-  SDL_Texture *texture = SDL_CreateTextureFromSurface(rRenderer, image);
-  SDL_Rect dstrect = {0, 0, rendersize, rendersize};
-  SDL_RenderCopy(rRenderer, texture, NULL, &dstrect);
-  SDL_Rect rect;
+  SDL_Surface *p_image = SDL_LoadBMP("./assets/tiles/plains_tile.bmp");
+  SDL_Texture *p_texture = SDL_CreateTextureFromSurface(rRenderer, p_image);
+  SDL_Surface *s_image = SDL_LoadBMP("./assets/tiles/sea_tile.bmp");
+  SDL_Texture *s_texture = SDL_CreateTextureFromSurface(rRenderer, s_image);
+  int x_diff = 0;
+  int xx_diff = rendersize / 2;
+  for (int y = 0; y < (int)(sizeof(map) / sizeof(map[0])); y++) {
+    for (int x = 0; x < (int)(sizeof(map[0]) / sizeof(int)); x++) {
+      SDL_Rect dstrect = {x * rendersize + x_diff, y * (int)(rendersize * 0.8),
+                          rendersize, rendersize};
+      if (map[y][x] == 0)
+        SDL_RenderCopy(rRenderer, s_texture, NULL, &dstrect);
+      else if (map[y][x] == 1)
+        SDL_RenderCopy(rRenderer, p_texture, NULL, &dstrect);
+    }
+    std::swap(x_diff, xx_diff);
+  }
+  /*SDL_Rect rect;
   rect.x = 50;
   rect.y = 50;
-  rect.w = 50;
+  rect.w = 200;
   rect.h = 50;
-  SDL_SetRenderDrawColor(rRenderer, 0, 0, 0, 255);
-  if (SDL_RenderDrawRect(rRenderer, &rect) < 0) {
-    std::cerr << SDL_GetError();
-  }
+  SDL_SetRenderDrawColor(rRenderer, 255, 255, 255, 255);
+  SDL_RenderDrawRect(rRenderer, &rect);
+  SDL_SetRenderDrawColor(rRenderer, 0, 0, 0, 255);*/
   SDL_RenderPresent(rRenderer);
-  SDL_DestroyTexture(texture);
-  SDL_FreeSurface(image);
+  SDL_DestroyTexture(s_texture);
+  SDL_FreeSurface(s_image);
+  SDL_DestroyTexture(p_texture);
+  SDL_FreeSurface(p_image);
   SDL_Delay(fps_delay);
 }
 
 void Renderer::renderJob() {
   SDL_GL_MakeCurrent(rWindow, rContext);
-  rRenderer = SDL_CreateRenderer(rWindow, -1, SDL_RENDERER_ACCELERATED);
+  rRenderer = SDL_CreateRenderer(
+      rWindow, -1,
+      SDL_RENDERER_ACCELERATED |       /*SDL_RENDERER_PRESENTVSYNC |*/
+          SDL_RENDERER_TARGETTEXTURE); // TODO possibility to (de)activate vsync
+                                       // (-> game settings)
   SDL_LockMutex(rLock);
   rFirstRun = false;
   SDL_CondSignal(rCond);
@@ -102,7 +125,8 @@ int main(int argc, char **argv) {
   SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS);
   SDL_Window *window = SDL_CreateWindow(
       "HEXEL", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
-      init_screen_width, init_screen_height, SDL_WINDOW_RESIZABLE);
+      init_screen_width, init_screen_height,
+      SDL_WINDOW_MAXIMIZED | SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE);
   Renderer renderer(window);
   while (window) {
     SDL_Event event;
@@ -113,7 +137,6 @@ int main(int argc, char **argv) {
         window = nullptr;
       }
     }
-    std::cout << renderer.fps << '\n';
   }
   SDL_Quit();
   return 0;
