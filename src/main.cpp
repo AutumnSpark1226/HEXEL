@@ -4,8 +4,8 @@
 #include <stdio.h>
 #include <thread>
 
-const int init_screen_width = 2000;
-const int init_screen_height = 1000;
+const int init_screen_width = 640;
+const int init_screen_height = 480;
 
 class Renderer {
 public:
@@ -14,7 +14,7 @@ public:
   void stop();
   float fps; // TODO move to private and add get method
   // TODO move to private and add get/set methods
-  int fps_delay = 10000; // WIP
+  int fps_delay = 10; // WIP
 
 private:
   void renderJob();
@@ -60,6 +60,7 @@ void Renderer::render() {
   int rendersize = 128;
   // TODO layer rendering
   SDL_RenderClear(rRenderer);
+  // best way to store data for prototyping
   int map[5][10] = {{1, 0, 1, 0, 1, 0, 0, 0, 0, 0},
                     {1, 0, 1, 0, 1, 0, 1, 0, 0, 1},
                     {1, 1, 1, 0, 1, 0, 0, 0, 0, 0},
@@ -77,25 +78,46 @@ void Renderer::render() {
       SDL_Rect dstrect = {x * rendersize + x_diff, y * (int)(rendersize * 0.8),
                           rendersize, rendersize};
       if (map[y][x] == 0)
-        SDL_RenderCopy(rRenderer, s_texture, NULL, &dstrect);
-      else if (map[y][x] == 1)
         SDL_RenderCopy(rRenderer, p_texture, NULL, &dstrect);
+      else if (map[y][x] == 1)
+        SDL_RenderCopy(rRenderer, s_texture, NULL, &dstrect);
     }
     std::swap(x_diff, xx_diff);
   }
-  /*SDL_Rect rect;
-  rect.x = 50;
-  rect.y = 50;
-  rect.w = 200;
-  rect.h = 50;
-  SDL_SetRenderDrawColor(rRenderer, 255, 255, 255, 255);
-  SDL_RenderDrawRect(rRenderer, &rect);
-  SDL_SetRenderDrawColor(rRenderer, 0, 0, 0, 255);*/
+  int object_rendersize = rendersize * 0.75;
+  int objects[5][10] = {{-1, -1, 1, 0, -1, -1, 0, -1, -1, -1},
+                        {-1, -1, -1, -1, -1, -1, 1, -1, -1, -1},
+                        {-1, -1, -1, -1, -1, -1, 0, -1, -1, -1},
+                        {-1, 0, -1, -1, -1, -1, -1, -1, -1, -1},
+                        {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1}};
+  SDL_Surface *o0_image = SDL_LoadBMP("./assets/objects/test_object0.bmp");
+  SDL_Texture *o0_texture = SDL_CreateTextureFromSurface(rRenderer, o0_image);
+  SDL_Surface *o1_image = SDL_LoadBMP("./assets/objects/test_object1.bmp");
+  SDL_Texture *o1_texture = SDL_CreateTextureFromSurface(rRenderer, o1_image);
+  x_diff = 0;
+  xx_diff = rendersize / 2;
+  for (int y = 0; y < (int)(sizeof(objects) / sizeof(objects[0])); y++) {
+    for (int x = 0; x < (int)(sizeof(objects[0]) / sizeof(int)); x++) {
+      SDL_Rect dstrect = {
+          x * rendersize + x_diff + (rendersize - object_rendersize) / 2,
+          y * (int)(rendersize * 0.8) + (rendersize - object_rendersize) / 2,
+          object_rendersize, object_rendersize};
+      if (objects[y][x] == 0)
+        SDL_RenderCopy(rRenderer, o0_texture, NULL, &dstrect);
+      else if (objects[y][x] == 1)
+        SDL_RenderCopy(rRenderer, o1_texture, NULL, &dstrect);
+    }
+    std::swap(x_diff, xx_diff);
+  }
   SDL_RenderPresent(rRenderer);
   SDL_DestroyTexture(s_texture);
   SDL_FreeSurface(s_image);
   SDL_DestroyTexture(p_texture);
   SDL_FreeSurface(p_image);
+  SDL_DestroyTexture(o0_texture);
+  SDL_FreeSurface(o0_image);
+  SDL_DestroyTexture(o1_texture);
+  SDL_FreeSurface(o1_image);
   SDL_Delay(fps_delay);
 }
 

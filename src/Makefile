@@ -21,4 +21,4 @@ all : $(FILES)
 	$(COMPILER) $(FILES) $(COMPILER_FLAGS) $(LINKER_FLAGS) -o $(BINARY_NAME)
 
 run:
-	./test.out $(ARGS)
+	$(BINARY_NAME) $(ARGS)
