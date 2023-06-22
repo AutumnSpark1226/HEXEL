@@ -4,22 +4,24 @@
 #include <stdio.h>
 #include <thread>
 
-const int init_screen_width = 640;
-const int init_screen_height = 480;
+const int init_screen_width = 1920;
+const int init_screen_height = 1080;
 
 class Renderer {
 public:
   Renderer(SDL_Window *window);
   ~Renderer();
   void stop();
-  float fps; // TODO move to private and add get method
-  // TODO move to private and add get/set methods
-  int fps_delay = 10; // WIP
+  float get_fps();
+  void set_fps_delay(int new_fps_delay);
+  int get_fps_delay();
 
 private:
+  float fps;
+  int fps_delay = 10;
+
   void renderJob();
   void render();
-
   SDL_GLContext rContext;
   SDL_Window *rWindow;
   SDL_Renderer *rRenderer;
@@ -55,57 +57,56 @@ void Renderer::stop() {
   rThread->join();
 }
 
+float Renderer::get_fps() { return fps; }
+
+void Renderer::set_fps_delay(int new_fps_delay) { fps_delay = new_fps_delay; }
+
+int Renderer::get_fps_delay() { return fps_delay; }
+
 void Renderer::render() {
   // TODO lower VRAM usage
   int rendersize = 128;
   // TODO layer rendering
   SDL_RenderClear(rRenderer);
   // best way to store data for prototyping
-  int map[5][10] = {{1, 0, 1, 0, 1, 0, 0, 0, 0, 0},
-                    {1, 0, 1, 0, 1, 0, 1, 0, 0, 1},
-                    {1, 1, 1, 0, 1, 0, 0, 0, 0, 0},
-                    {1, 0, 1, 0, 1, 0, 1, 0, 0, 1},
-                    {1, 0, 1, 0, 1, 0, 0, 1, 1, 0}};
+  int map[5][10] = {{2, 1, 2, 1, 2, 1, 1, 1, 1, 1},
+                    {2, 1, 2, 1, 2, 1, 2, 1, 1, 2},
+                    {2, 2, 2, 1, 2, 1, 1, 1, 1, 1},
+                    {2, 1, 2, 1, 2, 1, 2, 1, 1, 2},
+                    {2, 1, 2, 1, 2, 1, 1, 2, 2, 1}};
+  int object_rendersize = rendersize * 0.6;
+  int objects[5][10] = {{0, 0, 0, 1, 2, 0, 1, 0, 2, 2},
+                        {0, 0, 0, 0, 0, 0, 0, 0, 0, 2},
+                        {0, 0, 0, 0, 0, 0, 1, 0, 0, 0},
+                        {0, 1, 0, 0, 2, 0, 0, 0, 0, 0},
+                        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0}};
   // TODO optimize rendering by loading required assets to RAM
-  SDL_Surface *p_image = SDL_LoadBMP("./assets/tiles/plains_tile.bmp");
+  SDL_Surface *p_image = SDL_LoadBMP("./assets/tiles/forest_tile.bmp");
   SDL_Texture *p_texture = SDL_CreateTextureFromSurface(rRenderer, p_image);
-  SDL_Surface *s_image = SDL_LoadBMP("./assets/tiles/sea_tile.bmp");
+  SDL_Surface *s_image = SDL_LoadBMP("./assets/tiles/ocean_tile.bmp");
   SDL_Texture *s_texture = SDL_CreateTextureFromSurface(rRenderer, s_image);
-  int x_diff = 0;
-  int xx_diff = rendersize / 2;
-  for (int y = 0; y < (int)(sizeof(map) / sizeof(map[0])); y++) {
-    for (int x = 0; x < (int)(sizeof(map[0]) / sizeof(int)); x++) {
-      SDL_Rect dstrect = {x * rendersize + x_diff, y * (int)(rendersize * 0.8),
-                          rendersize, rendersize};
-      if (map[y][x] == 0)
-        SDL_RenderCopy(rRenderer, p_texture, NULL, &dstrect);
-      else if (map[y][x] == 1)
-        SDL_RenderCopy(rRenderer, s_texture, NULL, &dstrect);
-    }
-    std::swap(x_diff, xx_diff);
-  }
-  int object_rendersize = rendersize * 0.75;
-  int objects[5][10] = {{-1, -1, 1, 0, -1, -1, 0, -1, -1, -1},
-                        {-1, -1, -1, -1, -1, -1, 1, -1, -1, -1},
-                        {-1, -1, -1, -1, -1, -1, 0, -1, -1, -1},
-                        {-1, 0, -1, -1, -1, -1, -1, -1, -1, -1},
-                        {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1}};
   SDL_Surface *o0_image = SDL_LoadBMP("./assets/objects/test_object0.bmp");
   SDL_Texture *o0_texture = SDL_CreateTextureFromSurface(rRenderer, o0_image);
   SDL_Surface *o1_image = SDL_LoadBMP("./assets/objects/test_object1.bmp");
   SDL_Texture *o1_texture = SDL_CreateTextureFromSurface(rRenderer, o1_image);
-  x_diff = 0;
-  xx_diff = rendersize / 2;
-  for (int y = 0; y < (int)(sizeof(objects) / sizeof(objects[0])); y++) {
-    for (int x = 0; x < (int)(sizeof(objects[0]) / sizeof(int)); x++) {
-      SDL_Rect dstrect = {
+  int x_diff = 0;
+  int xx_diff = rendersize / 2;
+  for (int y = 0; y < (int)(sizeof(map) / sizeof(map[0])); y++) {
+    for (int x = 0; x < (int)(sizeof(map[0]) / sizeof(int)); x++) {
+      SDL_Rect dstrect = {x * rendersize + x_diff, y * (int)(rendersize * 0.77),
+                          rendersize, rendersize};
+      if (map[y][x] == 1)
+        SDL_RenderCopy(rRenderer, p_texture, NULL, &dstrect);
+      else if (map[y][x] == 2)
+        SDL_RenderCopy(rRenderer, s_texture, NULL, &dstrect);
+      SDL_Rect dstrecto = {
           x * rendersize + x_diff + (rendersize - object_rendersize) / 2,
-          y * (int)(rendersize * 0.8) + (rendersize - object_rendersize) / 2,
+          y * (int)(rendersize * 0.77) + (rendersize - object_rendersize) / 2,
           object_rendersize, object_rendersize};
-      if (objects[y][x] == 0)
-        SDL_RenderCopy(rRenderer, o0_texture, NULL, &dstrect);
-      else if (objects[y][x] == 1)
-        SDL_RenderCopy(rRenderer, o1_texture, NULL, &dstrect);
+      if (objects[y][x] == 1)
+        SDL_RenderCopy(rRenderer, o0_texture, NULL, &dstrecto);
+      else if (objects[y][x] == 2)
+        SDL_RenderCopy(rRenderer, o1_texture, NULL, &dstrecto);
     }
     std::swap(x_diff, xx_diff);
   }
