@@ -12,7 +12,7 @@ public:
   Renderer(SDL_Window *window);
   ~Renderer();
   void stop();
-  float get_fps();
+  float get_nofps();
   void set_fps_delay(int new_fps_delay);
   int get_fps_delay();
 
