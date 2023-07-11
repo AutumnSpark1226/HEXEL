@@ -1,7 +1,7 @@
 # Welcome to the contributing guide
 
 Thank you for investing your time in contributing to our project!
-Read our [Code of Conduct](./CODE_OF_CONDUCT.md) (once it is available) to keep our community approachable and respectable.
+Read our [Code of Conduct](CODE_OF_CONDUCT.md) to keep our community approachable and respectable.
 
 In this guide you will get an overview of the contribution workflow from opening an issue, creating a PR, reviewing, and merging the PR.
 
@@ -21,7 +21,7 @@ To get an overview of the project, read the [README](README.md). Here are some r
 
 #### Create a new issue
 
-If you spot a problem, [search if an issue already exists](https://docs.github.com/en/github/searching-for-information-on-github/searching-on-github/searching-issues-and-pull-requests#search-by-the-title-body-or-comments). If a related issue doesn't exist, you can open a new issue using a relevant issue form (WIP).
+If you spot a problem, [search if an issue already exists](https://docs.github.com/en/github/searching-for-information-on-github/searching-on-github/searching-issues-and-pull-requests#search-by-the-title-body-or-comments). If a related issue doesn't exist, you can open a new issue using a relevant issue form.
 
 #### Solve an issue
 
@@ -41,7 +41,7 @@ This is the recommended way because you should be able to build and test the gam
 - Using the command line:
   - [Fork the repo](https://docs.github.com/en/github/getting-started-with-github/fork-a-repo#fork-an-example-repository) so that you can make your changes without affecting the original project until you're ready to merge them.
 
-2. Install or update the build requirements. (Will be available in the future)
+2. Install or update the build requirements. (Tutorial work in progress)
 3. Create a working branch and start with your changes!
 
 ### Commit your update
