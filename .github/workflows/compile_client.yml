@@ -1,0 +1,21 @@
+name: Compile
+
+on:
+  push:
+    branches: [ "main", "developement" ]
+  pull_request:
+    branches: [ "main", "developement" ]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+    - name: Install dependencies
+      run: |
+            sudo apt update -qq
+            sudo apt install -y libsdl2-dev libsdl2-image-dev libsdl2-ttf-dev
+    - name: Compile the client
+      run: cd src && make HEXEL.out
