@@ -19,5 +19,3 @@ jobs:
             sudo apt install -y libsdl2-dev libsdl2-image-dev libsdl2-ttf-dev
     - name: Compile the client
       run: cd src && make HEXEL.out
-    - name: Compile the server
-      run: cd src && make HEXEL_server.out
