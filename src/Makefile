@@ -2,8 +2,10 @@
 COMPILER = g++
 
 # use these global compiler flags
-# -w suppresses all warnings (not used for debug builds)
-GLOBAL_COMPILER_FLAGS = -g
+# -w suppresses all warnings
+# -g used for debug builds
+# use c++20
+GLOBAL_COMPILER_FLAGS = -std=c++20 -g
 
 # client
 
@@ -21,7 +23,7 @@ CLIENT_COMPILER_FLAGS = # currently not required
 # compile this file (and its dependecies)
 SERVER_FILE = ./server/main.cpp
 # use these libraries
-SERVER_LINKER_FLAGS = # currently not required
+SERVER_LINKER_FLAGS = -lSDL2
 # executable name
 SERVER_BINARY_NAME = HEXEL_server.out
 # use these additional compile flags

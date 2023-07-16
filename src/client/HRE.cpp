@@ -23,9 +23,9 @@ public:
   void set_fps_delay(int new_fps_delay);
 
 private:
-  int fps_delay = 20;
+  int fps_delay = 10;
   void renderJob();
-  void render(Registry *reg);
+  void render();
   SDL_GLContext context;
   SDL_Window *rendered_window;
   SDL_Renderer *renderer;
@@ -33,9 +33,9 @@ private:
   SDL_mutex *mutex;
   SDL_cond *cond;
   bool first_run;
-  void render_background(Registry *reg);
-  void render_tiles_objects(Registry *reg);
-  void render_text(Registry *reg);
+  void render_background();
+  void render_tiles_objects();
+  void render_ui();
 };
 
 HRE::HRE() {
@@ -45,7 +45,6 @@ HRE::HRE() {
 HRE::HRE(SDL_Window *window)
     : rendered_window(window), renderer(nullptr), mutex(nullptr), cond(nullptr),
       first_run(true) {
-  TTF_Init();
   context = SDL_GL_GetCurrentContext();
   SDL_GL_MakeCurrent(window, nullptr);
   mutex = SDL_CreateMutex();
@@ -73,12 +72,12 @@ void HRE::set_fps_delay(int new_fps_delay) { fps_delay = new_fps_delay; }
 
 int HRE::get_fps_delay() { return fps_delay; }
 
-void HRE::render(Registry *reg) {
+void HRE::render() {
   // TODO lower VRAM usage
   SDL_RenderClear(renderer);
-  render_background(reg);
-  render_tiles_objects(reg);
-  render_text(reg);
+  render_background();
+  render_tiles_objects();
+  render_ui();
   SDL_RenderPresent(renderer);
   SDL_Delay(fps_delay);
 }
@@ -89,8 +88,7 @@ void HRE::renderJob() {
       rendered_window, -1,
       SDL_RENDERER_ACCELERATED |       /*SDL_RENDERER_PRESENTVSYNC |*/
           SDL_RENDERER_TARGETTEXTURE); // TODO possibility to (de)activate
-  // vsync
-  // (-> game settings)
+  // vsync (-> game settings)
   reg->init(renderer);
   SDL_LockMutex(mutex);
   first_run = false;
@@ -98,13 +96,13 @@ void HRE::renderJob() {
   SDL_UnlockMutex(mutex);
   while (reg->keep_running) {
     if (renderer != nullptr) {
-      render(reg);
+      render();
     }
   }
   exit(0);
 }
 
-void HRE::render_background(Registry *reg) {
+void HRE::render_background() {
   SDL_DisplayMode display_mode;
   SDL_GetCurrentDisplayMode(0, &display_mode);
   int width = display_mode.w;
@@ -114,54 +112,57 @@ void HRE::render_background(Registry *reg) {
                  &destination);
 }
 
-void HRE::render_tiles_objects(Registry *reg) {
+void HRE::render_tiles_objects() {
+  // TODO WIP
+  const std::vector<std::vector<int>> map = reg->get_tiles();
+  const std::vector<std::vector<int>> objects = reg->get_objects();
   SDL_DisplayMode display_mode;
   SDL_GetCurrentDisplayMode(0, &display_mode);
-  int display_width = display_mode.w;
-  int display_height = display_mode.h;
+  int width = display_mode.w;
+  int height = display_mode.h;
+  //           ( middle )
+  int zero_x = width / 2 - map.at(0).size() * 0.25 * reg->rendersize +
+               reg->camera_position_x; // TODO fix
+  int zero_y = height / 2 - map.size() * 0.25 * reg->rendersize +
+               reg->camera_position_y; // TODO fix
   int object_rendersize = reg->rendersize * 0.6;
-  std::vector<std::vector<int>> map = reg->get_tiles();
-  std::vector<std::vector<int>> objects = reg->get_objects();
-  // TODO optimize rendering by loading required assets to RAM
   int x_diff = 0;
-  int xx_diff = reg->rendersize / 2;
+  int xx_diff = reg->rendersize * 1.01 / 2;
   for (int y = 0; y < (int)map.size(); y++) {
-    for (int x = 0; x < (int)map[y].size(); x++) {
-      SDL_Rect destination = {
-          (int)(x * reg->rendersize * 1.01) + x_diff + reg->camera_position_x,
-          y * (int)(reg->rendersize * 0.77) + reg->camera_position_y,
-          reg->rendersize, reg->rendersize};
-      if (map[y][x] == 1)
+    for (int x = 0; x < (int)map.at(y).size(); x++) {
+      SDL_Rect destination = {(int)(x * reg->rendersize * 1.01) + x_diff +
+                                  zero_x,
+                              (int)(y * reg->rendersize * 0.765) + zero_y,
+                              reg->rendersize, reg->rendersize};
+      if (map.at(y).at(x) == 1)
         SDL_RenderCopy(renderer, reg->forest_tile, NULL, &destination);
-      else if (map[y][x] == 2)
+      else if (map.at(y).at(x) == 2)
         SDL_RenderCopy(renderer, reg->ocean_tile, NULL, &destination);
-      SDL_Rect destinationo = {(int)(x * reg->rendersize * 1.01) + x_diff +
-                                   (reg->rendersize - object_rendersize) / 2 +
-                                   reg->camera_position_x,
-                               y * (int)(reg->rendersize * 0.77) +
-                                   (reg->rendersize - object_rendersize) / 2 +
-                                   reg->camera_position_y,
-                               object_rendersize, object_rendersize};
-      if (objects[y][x] == 1)
-        SDL_RenderCopy(renderer, reg->object0, NULL, &destinationo);
-      else if (objects[y][x] == 2)
-        SDL_RenderCopy(renderer, reg->object1, NULL, &destinationo);
+      else if (map.at(y).at(x) == 3)
+        SDL_RenderCopy(renderer, reg->plains_tile, NULL, &destination);
+      destination = {(int)(x * reg->rendersize * 1.01) + x_diff +
+                         (reg->rendersize - object_rendersize) / 2 + zero_x,
+                     (int)(y * reg->rendersize * 0.765) +
+                         (reg->rendersize - object_rendersize) / 2 + zero_y,
+                     object_rendersize, object_rendersize};
+      if (objects.at(y).at(x) == 1)
+        SDL_RenderCopy(renderer, reg->base, NULL, &destination);
+      else if (objects.at(y).at(x) == 2)
+        SDL_RenderCopy(renderer, reg->object0, NULL, &destination);
+      else if (objects.at(y).at(x) == 3)
+        SDL_RenderCopy(renderer, reg->object1, NULL, &destination);
     }
     std::swap(x_diff, xx_diff);
   }
 }
 
-void HRE::render_text(
-    Registry *reg) { // TODO rendering text somewhere on the map
-  TTF_Font *default_font = TTF_OpenFont("./assets/fonts/FreeMono.ttf",
-                                        24); // using a smaller font size in
-  // order to have a pixelated result
-  SDL_Rect destination = {100, 100, 128, 128};
+void HRE::render_ui() {
+  // TODO still WIP
+  SDL_Rect destination = {100, 100, 512, 128};
   SDL_Color color = {255, 255, 255};
   SDL_Surface *text;
-  text = TTF_RenderText_Solid(default_font, "HEXEL", color);
+  text = TTF_RenderText_Solid(reg->default_font, "HEXEL alpha preview", color);
   SDL_Texture *text_texture = SDL_CreateTextureFromSurface(renderer, text);
   SDL_RenderCopy(renderer, text_texture, NULL, &destination);
   SDL_RenderCopy(renderer, text_texture, NULL, &destination);
-  TTF_CloseFont(default_font);
 }

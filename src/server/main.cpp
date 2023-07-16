@@ -1,12 +1,14 @@
 #include "communication.cpp"
-#include <stdio.h>
+#include <SDL2/SDL.h>
+
+Communication com;
 
 int main(int argc, char **argv) {
-  Communication com = Communication(43233);
+  reg->init(25, 25);
+  com = Communication(43233);
   while (true) {
-    char *input = com.receive_text();
-    std::cout << input << '\n';
-    com.send_text(input);
+    com.accept_client();
+    com.check_clients();
+    SDL_Delay(100);
   }
-  return 0;
 }

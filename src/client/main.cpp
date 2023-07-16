@@ -28,14 +28,20 @@ Networking::Networking() {
 
 Networking::Networking(char *host, int port) {
   com = Communication(host, port);
+  int map_size_x = std::stoi(com.receive_text());
+  int map_size_y = std::stoi(com.receive_text());
+  com.send_text((char *)"ok");
+  map = new vector<vector<int>>(map_size_y, vector<int>(map_size_x));
+  objects = new vector<vector<int>>(map_size_y, vector<int>(map_size_x));
 }
 
 void Networking::network_job() {
   while (nKeepRunning) {
-    com.send_text((char *)"ping");
-    char *in = com.receive_text();
-    std::cout << in << '\n';
-    SDL_Delay(2000);
+    char *server_data = com.request_data((char *)"map");
+    reg->process_map_update(server_data);
+    server_data = com.request_data((char *)"objects");
+    reg->process_object_update(server_data);
+    SDL_Delay(5000);
   }
 }
 
@@ -55,20 +61,30 @@ void process_input() {
     if (SDL_PollEvent(&event)) {
       if (event.type == SDL_QUIT) {
         return;
-      } else if (event.type == SDL_KEYDOWN) {
-        if (keyboard_state[SDL_SCANCODE_W] && !(keyboard_state[SDL_SCANCODE_S]))
-          reg->camera_position_y += 6;
-        if (keyboard_state[SDL_SCANCODE_A] && !(keyboard_state[SDL_SCANCODE_D]))
-          reg->camera_position_x += 6;
-        if (keyboard_state[SDL_SCANCODE_S] && !(keyboard_state[SDL_SCANCODE_W]))
-          reg->camera_position_y -= 6;
-        if (keyboard_state[SDL_SCANCODE_D] && !(keyboard_state[SDL_SCANCODE_A]))
-          reg->camera_position_x -= 6;
+      } else if (event.type == SDL_KEYUP) {
+        SDL_PumpEvents();
       } else if (event.type == SDL_MOUSEWHEEL) {
         if (event.wheel.y > 0) // scroll up
           reg->rendersize += 4;
         else if (event.wheel.y < 0) // scroll down
           reg->rendersize -= 4;
+      } else if (event.type == SDL_KEYDOWN) {
+        if (keyboard_state[SDL_SCANCODE_W] &&
+            !(keyboard_state[SDL_SCANCODE_S])) {
+          reg->camera_position_y += 1;
+        }
+        if (keyboard_state[SDL_SCANCODE_A] &&
+            !(keyboard_state[SDL_SCANCODE_D])) {
+          reg->camera_position_x += 1;
+        }
+        if (keyboard_state[SDL_SCANCODE_S] &&
+            !(keyboard_state[SDL_SCANCODE_W])) {
+          reg->camera_position_y -= 1;
+        }
+        if (keyboard_state[SDL_SCANCODE_D] &&
+            !(keyboard_state[SDL_SCANCODE_A])) {
+          reg->camera_position_x -= 1;
+        }
       }
     }
   }
@@ -76,10 +92,11 @@ void process_input() {
 
 void ui_start() {
   SDL_Init(SDL_INIT_EVERYTHING);
-  SDL_Window *window = SDL_CreateWindow(
-      "HEXEL", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
-      INIT_SCREEN_WIDTH, INIT_SCREEN_HEIGTH,
-      SDL_WINDOW_MAXIMIZED | SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE);
+  TTF_Init();
+  SDL_Window *window =
+      SDL_CreateWindow("HEXEL", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
+                       INIT_SCREEN_WIDTH, INIT_SCREEN_HEIGTH,
+                       SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE);
   hre = HRE(window);
   process_input();
   hre.stop();

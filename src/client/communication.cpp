@@ -1,12 +1,13 @@
+#include <SDL2/SDL.h>
 #include <arpa/inet.h>
-#include <bits/stdc++.h>
-#include <netinet/in.h>
+#include <iostream>
+#include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <sys/socket.h>
-#include <sys/types.h>
 #include <unistd.h>
 
-#define MAXLINE 1024
+#define MAX_TRANSMISSION_LENGTH 1024
 
 class Communication {
 public:
@@ -15,40 +16,67 @@ public:
   void stop();
   char *receive_text();
   void send_text(char *message);
+  char *request_data(char *id);
 
 private:
-  int sockfd;
-  struct sockaddr_in server_address;
+  int server_socket;
+  struct sockaddr_in server;
 };
-
-char *Communication::receive_text() {
-  int n;
-  socklen_t socket_length;
-  char *buffer = new char[MAXLINE];
-  n = recvfrom(sockfd, (char *)buffer, MAXLINE, MSG_WAITALL,
-               (struct sockaddr *)&server_address, &socket_length);
-  buffer[n] = '\0';
-  return buffer;
-}
-
-void Communication::send_text(char *message) {
-  sendto(sockfd, (const char *)message, strlen(message), MSG_CONFIRM,
-         (const struct sockaddr *)&server_address, sizeof(server_address));
-}
 
 Communication::Communication() {
   // do nothing
 }
 
 Communication::Communication(char *host, int port) {
-  if ((sockfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
-    perror("socket creation failed");
+  server_socket = socket(AF_INET, SOCK_STREAM, 0);
+  if (server_socket == -1) {
+    perror("error: couldn't create server_socketet");
     exit(1);
   }
-  memset(&server_address, 0, sizeof(server_address));
-  server_address.sin_family = AF_INET;
-  server_address.sin_port = htons(port);
-  server_address.sin_addr.s_addr = inet_addr(host);
+  server.sin_addr.s_addr = inet_addr(host);
+  server.sin_family = AF_INET;
+  server.sin_port = htons(port);
+  if (connect(server_socket, (struct sockaddr *)&server, sizeof(server)) < 0) {
+    perror("error: couldn't connect");
+    exit(1);
+  }
 }
 
-void Communication::stop() { close(sockfd); }
+void Communication::send_text(char *message) {
+  std::string temp(message);
+  uint32_t len = temp.length();
+  send(server_socket, &len, 4, 0);
+  send(server_socket, message, len, 0);
+}
+
+char *Communication::receive_text() {
+  uint32_t len = 0;
+  read(server_socket, &len, 4);
+  int valread;
+  char buffer[len];
+  valread = read(server_socket, buffer, len);
+  if (valread == 0) {
+    server_socket = 0;
+    exit(1);
+  } else {
+    char *reformatted_output = new char[valread + 1];
+    reformatted_output[valread] = '\0';
+    for (int i = 0; i < valread; i++) {
+      reformatted_output[i] = buffer[i];
+    }
+    return reformatted_output;
+  }
+}
+
+char *Communication::request_data(char *id) {
+  send_text((char *)"request_data");
+  char *response = receive_text();
+  if (strcmp(response, "await_id") == 0) {
+    send_text(id);
+    char *result = receive_text();
+    return result;
+  } else {
+    printf("ERROR! response was: %s\n", response);
+    return (char *)"notFound";
+  }
+}
