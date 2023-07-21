@@ -34,22 +34,46 @@ public:
   int rendersize = 128;
   int camera_position_x = 0;
   int camera_position_y = 0;
-  std::vector<std::vector<int>> get_tiles();
-  std::vector<std::vector<int>> get_objects();
+  /*
+  0 -> main menu
+  1 -> join game
+  2 -> settings
+  9 -> credits
+  10 -> normal game
+  11 -> ingame menu
+  12 -> status view
+  13 -> waiting
+  14 -> game over
+  */
+  int ui_mode = 0;
+  SDL_Window *window;
+  vector<vector<int>> get_tiles();
+  vector<vector<int>> get_objects();
+  vector<vector<int>> get_buttons();
+  vector<string> get_button_texts();
+  void add_button(int screen_x, int screen_y, string text);
+  void reset_buttons();
   SDL_Texture *background_dark_purple_void_texture;
+  SDL_Texture *background_fog_texture;
+  SDL_Texture *fog_of_war_tile;
   SDL_Texture *forest_tile;
   SDL_Texture *ocean_tile;
   SDL_Texture *plains_tile;
-  SDL_Texture *base;
-  SDL_Texture *object0;
-  SDL_Texture *object1;
+  SDL_Texture *base_blue;
+  SDL_Texture *base_red;
+  SDL_Texture *swordsman_blue;
+  SDL_Texture *swordsman_red;
+  SDL_Texture *button;
   TTF_Font *default_font;
   void process_map_update(char *input);
   void process_object_update(char *input);
+  std::vector<int> last_clicked_object = {-1, -1};
 
 private:
   bool map_locked = false;
   bool objects_locked = false;
+  vector<vector<int>> *buttons = new vector<vector<int>>(1, vector<int>(4));
+  vector<string> *button_texts = new vector<string>(1);
 };
 
 Registry::Registry() {
@@ -60,31 +84,44 @@ void Registry::init(SDL_Renderer *renderer) {
   background_dark_purple_void_texture = SDL_CreateTextureFromSurface(
       renderer,
       SDL_LoadBMP("./assets/background/background_dark-purple_void.bmp"));
+  background_fog_texture = SDL_CreateTextureFromSurface(
+      renderer, SDL_LoadBMP("./assets/background/fog.bmp"));
+  fog_of_war_tile = SDL_CreateTextureFromSurface(
+      renderer, SDL_LoadBMP("./assets/tiles/fog_of_war_tile.bmp"));
   forest_tile = SDL_CreateTextureFromSurface(
       renderer, SDL_LoadBMP("./assets/tiles/forest_tile.bmp"));
   ocean_tile = SDL_CreateTextureFromSurface(
       renderer, SDL_LoadBMP("./assets/tiles/ocean_tile.bmp"));
   plains_tile = SDL_CreateTextureFromSurface(
       renderer, SDL_LoadBMP("./assets/tiles/plains_tile.bmp"));
-  base = SDL_CreateTextureFromSurface(renderer,
-                                      SDL_LoadBMP("./assets/objects/base.bmp"));
-  object0 = SDL_CreateTextureFromSurface(
-      renderer, SDL_LoadBMP("./assets/objects/test_object0.bmp"));
-  object1 = SDL_CreateTextureFromSurface(
-      renderer, SDL_LoadBMP("./assets/objects/test_object1.bmp"));
+  base_blue = SDL_CreateTextureFromSurface(
+      renderer, SDL_LoadBMP("./assets/objects/base_blue.bmp"));
+  base_red = SDL_CreateTextureFromSurface(
+      renderer, SDL_LoadBMP("./assets/objects/base_red.bmp"));
+  swordsman_blue = SDL_CreateTextureFromSurface(
+      renderer, SDL_LoadBMP("./assets/objects/swordsman_blue.bmp"));
+  swordsman_red = SDL_CreateTextureFromSurface(
+      renderer, SDL_LoadBMP("./assets/objects/swordsman_red.bmp"));
+  button = SDL_CreateTextureFromSurface(renderer,
+                                        SDL_LoadBMP("./assets/ui/button.bmp"));
   default_font = TTF_OpenFont(
       "./assets/fonts/FreeMono.ttf",
-      24); // using a smaller font size in order to have a piyelated result
+      24); // using a smaller font size in order to have a pixelated result
+  reset_buttons();
 }
 
 void Registry::deinit() {
   SDL_DestroyTexture(background_dark_purple_void_texture);
+  SDL_DestroyTexture(background_fog_texture);
   SDL_DestroyTexture(forest_tile);
+  SDL_DestroyTexture(fog_of_war_tile);
   SDL_DestroyTexture(ocean_tile);
   SDL_DestroyTexture(plains_tile);
-  SDL_DestroyTexture(base);
-  SDL_DestroyTexture(object0);
-  SDL_DestroyTexture(object1);
+  SDL_DestroyTexture(base_blue);
+  SDL_DestroyTexture(base_red);
+  SDL_DestroyTexture(swordsman_blue);
+  SDL_DestroyTexture(swordsman_red);
+  SDL_DestroyTexture(button);
   TTF_CloseFont(default_font);
 }
 
@@ -100,6 +137,26 @@ vector<vector<int>> Registry::get_objects() {
   return (*objects);
 }
 
+vector<vector<int>> Registry::get_buttons() { return (*buttons); }
+
+vector<string> Registry::get_button_texts() { return (*button_texts); }
+
+void Registry::add_button(int screen_x, int screen_y, string text) {
+  buttons->push_back({screen_x, screen_y, 200, 75});
+  button_texts->push_back(text);
+}
+
+void Registry::reset_buttons() {
+  buttons->clear();
+  button_texts->clear();
+  if (ui_mode == 10) {
+    int width;
+    int height;
+    SDL_GL_GetDrawableSize(window, &width, &height);
+    add_button(width - 200, 0, "End turn");
+  }
+}
+
 void Registry::process_map_update(char *input) {
   map_locked = true;
   if (strcmp(input, "notFound") == 0 || strcmp(input, "IDnotFound") == 0) {
@@ -107,7 +164,7 @@ void Registry::process_map_update(char *input) {
     return;
   }
   // read input
-  vector<string> rows = tokenize(input, ", ; ");
+  vector<string> rows = tokenize(input, ", ;");
   map->clear();
   for (int y = 0; y < (int)rows.size() - 1; y++) {
     vector<string> columns = tokenize(rows.at(y), ", ");
@@ -127,7 +184,7 @@ void Registry::process_object_update(char *input) {
     return;
   }
   // read input
-  vector<string> rows = tokenize(input, ", ; ");
+  vector<string> rows = tokenize(input, ", ;");
   objects->clear();
   for (int y = 0; y < (int)rows.size() - 1; y++) {
     vector<string> columns = tokenize(rows.at(y), ", ");

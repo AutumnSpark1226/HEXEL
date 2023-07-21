@@ -1,13 +1,12 @@
 #include "data_registry.cpp"
 #include <SDL2/SDL.h>
 #include <arpa/inet.h>
+#include <iostream>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/socket.h>
 #include <unistd.h>
-
-#define MAX_TRANSMISSION_LENGTH 1024
 
 Registry *reg;
 
@@ -16,8 +15,8 @@ public:
   Communication();
   Communication(int port);
   void accept_client();
-  char *receive_text(int client_socket_id);
-  void send_text(int client_socket_id, char *message);
+  string receive_text(int client_socket_id);
+  void send_text(int client_socket_id, string message);
   void check_clients();
 
 private:
@@ -26,8 +25,8 @@ private:
   struct sockaddr_in address;
   int addrlen, new_socket, max_clients = 30, sd, activity, max_sd;
   fd_set readfds;
-  void process_received_data(int client_socket_id, char *req);
-  char *get_game_data(char *id);
+  void process_received_data(int client_socket_id, string req);
+  string get_game_data(int client_socket_id, string id);
 };
 
 Communication::Communication() {
@@ -35,6 +34,7 @@ Communication::Communication() {
 }
 
 Communication::Communication(int port) {
+  task_queue->clear();
   int opt = 1;
   for (int i = 0; i < max_clients; i++) {
     client_sockets[i] = 0;
@@ -62,14 +62,13 @@ Communication::Communication(int port) {
   printf("init done\n");
 }
 
-void Communication::send_text(int client_socket_id, char *message) {
-  std::string temp(message);
-  uint32_t len = temp.length();
+void Communication::send_text(int client_socket_id, string message) {
+  uint32_t len = message.length();
   send(client_sockets[client_socket_id], &len, 4, 0);
-  send(client_sockets[client_socket_id], message, len, 0);
+  send(client_sockets[client_socket_id], message.c_str(), len, 0);
 }
 
-char *Communication::receive_text(int client_socket_id) {
+string Communication::receive_text(int client_socket_id) {
   uint32_t len = 0;
   read(client_sockets[client_socket_id], &len, 4);
   int valread;
@@ -77,7 +76,8 @@ char *Communication::receive_text(int client_socket_id) {
   valread = read(client_sockets[client_socket_id], buffer, len);
   if (valread == 0) {
     client_sockets[client_socket_id] = 0;
-    return nullptr;
+    reg->delete_user(client_socket_id);
+    return "";
   } else {
     buffer[valread] = '\0';
     char *output = (char *)buffer;
@@ -111,11 +111,12 @@ void Communication::accept_client() {
         break;
       }
     }
+    reg->process_user_join(new_socket_id);
     printf("client accepted\n");
     string temp_str = to_string(game_map->at(0).size());
-    send_text(new_socket_id, temp_str.data()); // working since c++17
+    send_text(new_socket_id, temp_str);
     temp_str = to_string(game_map->size());
-    send_text(new_socket_id, temp_str.data()); // working since c++17
+    send_text(new_socket_id, temp_str);
     receive_text(new_socket_id);
   }
 }
@@ -129,43 +130,76 @@ void Communication::check_clients() {
   }
 }
 
-void Communication::process_received_data(int client_socket_id, char *req) {
-  if (req == nullptr) {
+void Communication::process_received_data(int client_socket_id, string req) {
+  if (req == "") {
     return;
   }
-  if (strcmp(req, (char *)"request_data") == 0) {
+  if (strcmp(req.data(), "request_data") == 0) {
     send_text(client_socket_id, (char *)"await_id");
     req = receive_text(client_socket_id);
-    send_text(client_socket_id, get_game_data(req));
+    send_text(client_socket_id, get_game_data(client_socket_id, req));
+  } else if (strcmp(req.data(), "end_turn") == 0) {
+    (*turn_finished)[client_socket_id] = true;
+    bool all_finished = true;
+    for (int i = 0; i < max_clients; i++) {
+      if (client_sockets[i] != 0 && !(*turn_finished)[i]) {
+        all_finished = false;
+      }
+    }
+    if (all_finished) {
+      reg->increment_turn_count();
+      reg->process_queue();
+      while (processing_outputs->size() > 0) {
+        if (strcmp(processing_outputs->at(0).at(0).data(), "dead") == 0) {
+          printf("%s\n", "Player died");
+          send_text(stoi(processing_outputs->at(0).at(1)), "dead");
+          client_sockets[stoi(processing_outputs->at(0).at(1))] = 0;
+        }
+        processing_outputs->erase(processing_outputs->begin());
+      }
+      for (int i = 0; i < max_clients; i++) {
+        if (client_sockets[i] != 0) {
+          send_text(i, "nextTurn");
+          (*turn_finished)[i] = false;
+        }
+      }
+    }
+  } else if (strcmp(req.data(), "attack") == 0) {
+    req = receive_text(client_socket_id);
+    if (!(*turn_finished)[client_socket_id]) {
+      reg->add_task((char *)"attack", req, client_socket_id);
+    }
+  } else if (strcmp(req.data(), "move") == 0) {
+    req = receive_text(client_socket_id);
+    if (!(*turn_finished)[client_socket_id]) {
+      reg->add_task((char *)"move", req, client_socket_id);
+    }
+  } else if (strcmp(req.data(), "get_status") == 0) {
+    req = receive_text(client_socket_id);
+    vector<string> options = tokenize(req, " . ");
+    send_text(client_socket_id,
+              reg->get_object_name(client_socket_id, stoi(options.at(0)),
+                                   stoi(options.at(1)))
+                  .data());
+    send_text(client_socket_id,
+              ("HP: " +
+               to_string(hp->at(stoi(options.at(1))).at(stoi(options.at(0)))))
+                  .data());
   } else {
     send_text(client_socket_id, (char *)"notFound");
-    printf("Command not found: %s\n", req);
+    printf("Command not found: %s\n", req.c_str());
   }
 }
 
-char *Communication::get_game_data(char *id) {
-  if (strcmp(id, (char *)"map") == 0) {
-    string output = reg->export_map();
-    // not a beautiful way to turn a string into a char* but everything else
-    // doen't work
-    char *reformatted_output = new char[output.length() + 1];
-    reformatted_output[output.length()] = '\0';
-    for (int i = 0; i < (int)output.length(); i++) {
-      reformatted_output[i] = output[i];
-    }
-    return reformatted_output;
-  } else if (strcmp(id, (char *)"objects") == 0) {
-    string output = reg->export_objects();
-    // not a beautiful way to turn a string into a char* but everything else
-    // doesn't work
-    char *reformatted_output = new char[output.length() + 1];
-    reformatted_output[output.length()] = '\0';
-    for (int i = 0; i < (int)output.length(); i++) {
-      reformatted_output[i] = output[i];
-    }
-    return reformatted_output;
+string Communication::get_game_data(int client_socket_id, string id) {
+  if (strcmp(id.data(), "map") == 0) {
+    string output = reg->export_map(client_socket_id);
+    return output;
+  } else if (strcmp(id.data(), "objects") == 0) {
+    string output = reg->export_objects(client_socket_id);
+    return output;
   } else {
-    printf("Data ID not found: %s\n", id);
-    return (char *)"IDnotFound";
+    printf("Data ID not found: %s\n", id.c_str());
+    return "IDnotFound";
   }
 }

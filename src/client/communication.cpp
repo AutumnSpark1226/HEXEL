@@ -7,8 +7,6 @@
 #include <sys/socket.h>
 #include <unistd.h>
 
-#define MAX_TRANSMISSION_LENGTH 1024
-
 class Communication {
 public:
   Communication();
