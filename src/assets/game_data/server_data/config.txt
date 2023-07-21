@@ -1,0 +1,5 @@
+# set map size
+#map_size_x = 10
+#map_size_y = 10
+# load map from file
+#map_file = assets/game_data/maps/test_map.txt

@@ -1,0 +1,21 @@
+name: Compile server
+
+on:
+  push:
+    branches: [ "main", "developement" ]
+  pull_request:
+    branches: [ "main", "developement" ]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+    - name: Install dependencies
+      run: |
+            sudo apt update -qq
+            sudo apt install -y libsdl2-dev libsdl2-image-dev libsdl2-ttf-dev
+    - name: Compile the server
+      run: cd src && make HEXEL_server.out
