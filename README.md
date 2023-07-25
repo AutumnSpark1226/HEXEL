@@ -7,7 +7,7 @@ a cool strategy game
 ### Move
 - W/A/S/D: move your view
 - Mouse wheel up/down: zoom in/out
-- Escape: leave a menu or got to quit menu
+- Escape: leave a menu or go to menu
 
 
 ## Compile
