@@ -2,9 +2,9 @@ name: Compile client
 
 on:
   push:
-    branches: [ "main", "developement" ]
+    branches: [ "main", "development" ]
   pull_request:
-    branches: [ "main", "developement" ]
+    branches: [ "main", "development" ]
 
 jobs:
   build:
