@@ -160,12 +160,20 @@ int process_left_click(SDL_Event event, const Uint8 *keyboard_state) {
       SDL_GL_GetDrawableSize(window, &width, &height);
       if (reg->get_objects().at(clickable[2]).at(clickable[1]) != 0) {
         reg->last_clicked_object = {clickable[1], clickable[2]};
-        reg->add_button(width - 200, height - 75, "Attack");
-        reg->add_button(width - 200, height - 150, "Move");
-        reg->add_button(width - 200, height - 225, "Status");
-        reg->add_button(width - 200, height - 300,
-                        to_string(clickable[1]) + "." +
-                            to_string(clickable[2]));
+        reg->add_button(width - 200, height - 75, "Status");
+        if (reg->get_objects().at(clickable[2]).at(clickable[1]) == 1) {
+          reg->add_button(width - 200, height - 150, "Spawn");
+          reg->add_button(width - 200, height - 225,
+                          reg->get_object_name(clickable[1], clickable[2]));
+        } else if (reg->get_objects().at(clickable[2]).at(clickable[1]) == 3) {
+          reg->add_button(width - 200, height - 150, "Attack");
+          reg->add_button(width - 200, height - 225, "Move");
+          reg->add_button(width - 200, height - 300,
+                          reg->get_object_name(clickable[1], clickable[2]));
+        } else {
+          reg->add_button(width - 200, height - 150,
+                          reg->get_object_name(clickable[1], clickable[2]));
+        }
       } else {
         reg->reset_buttons();
       }
@@ -181,53 +189,10 @@ int process_left_click(SDL_Event event, const Uint8 *keyboard_state) {
         return 1;
       }
     } else if (reg->ui_mode == 10) {
-      switch (clickable[1]) {
-      case 0:
+      if (clickable[1] == 0) { // end turn
         networking.add_task((char *)"end_turn");
-        break;
-      case 1: {
-        string task_option = "";
-        task_option += to_string(reg->last_clicked_object.at(0));
-        task_option += " . ";
-        task_option += to_string(reg->last_clicked_object.at(1));
-        string destination = get_destination(event, keyboard_state);
-        reg->reset_buttons();
-        if (destination == "")
-          break;
-        task_option += " . ";
-        task_option += destination;
-        // not a beautiful way to turn a string into a char* but everything
-        // else doesn't work
-        char *reformatted = new char[task_option.length() + 1];
-        reformatted[task_option.length()] = '\0';
-        for (int i = 0; i < (int)task_option.length(); i++) {
-          reformatted[i] = task_option[i];
-        }
-        networking.add_task((char *)"attack", reformatted);
-        break;
       }
-      case 2: {
-        string task_option = "";
-        task_option += to_string(reg->last_clicked_object.at(0));
-        task_option += " . ";
-        task_option += to_string(reg->last_clicked_object.at(1));
-        string destination = get_destination(event, keyboard_state);
-        reg->reset_buttons();
-        if (destination == "")
-          break;
-        task_option += " . ";
-        task_option += destination;
-        // not a beautiful way to turn a string into a char* but everything
-        // else doesn't work
-        char *reformatted = new char[task_option.length() + 1];
-        reformatted[task_option.length()] = '\0';
-        for (int i = 0; i < (int)task_option.length(); i++) {
-          reformatted[i] = task_option[i];
-        }
-        networking.add_task((char *)"move", reformatted);
-        break;
-      }
-      case 3: {
+      if (clickable[1] == 1) { // status
         string task_option = "";
         task_option += to_string(reg->last_clicked_object.at(0));
         task_option += " . ";
@@ -242,8 +207,55 @@ int process_left_click(SDL_Event event, const Uint8 *keyboard_state) {
         networking.add_task((char *)"get_status", reformatted);
         reg->ui_mode = 12;
         reg->reset_buttons();
-        break;
       }
+    }
+    if (clickable[1] == 2 &&
+        (reg->get_objects()
+                 .at(reg->last_clicked_object.at(1))
+                 .at(reg->last_clicked_object.at(0)) == 1 ||
+         reg->get_objects()
+                 .at(reg->last_clicked_object.at(1))
+                 .at(reg->last_clicked_object.at(0)) == 3)) { // attack or spawn
+      string task_option = "";
+      task_option += to_string(reg->last_clicked_object.at(0));
+      task_option += " . ";
+      task_option += to_string(reg->last_clicked_object.at(1));
+      string destination = get_destination(event, keyboard_state);
+      reg->reset_buttons();
+      if (destination != "") {
+        task_option += " . ";
+        task_option += destination;
+        // not a beautiful way to turn a string into a char* but everything
+        // else doesn't work
+        char *reformatted = new char[task_option.length() + 1];
+        reformatted[task_option.length()] = '\0';
+        for (int i = 0; i < (int)task_option.length(); i++) {
+          reformatted[i] = task_option[i];
+        }
+        networking.add_task((char *)"attack", reformatted);
+      }
+    }
+    if (clickable[1] == 3 &&
+        reg->get_objects()
+                .at(reg->last_clicked_object.at(1))
+                .at(reg->last_clicked_object.at(0)) == 3) { // move
+      string task_option = "";
+      task_option += to_string(reg->last_clicked_object.at(0));
+      task_option += " . ";
+      task_option += to_string(reg->last_clicked_object.at(1));
+      string destination = get_destination(event, keyboard_state);
+      reg->reset_buttons();
+      if (destination != "") {
+        task_option += " . ";
+        task_option += destination;
+        // not a beautiful way to turn a string into a char* but everything
+        // else doesn't work
+        char *reformatted = new char[task_option.length() + 1];
+        reformatted[task_option.length()] = '\0';
+        for (int i = 0; i < (int)task_option.length(); i++) {
+          reformatted[i] = task_option[i];
+        }
+        networking.add_task((char *)"move", reformatted);
       }
     } else if (reg->ui_mode == 13) {
       if (clickable[1] == 1) {

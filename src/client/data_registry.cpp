@@ -11,8 +11,22 @@ using namespace std;
 
 vector<vector<int>> *map =
     new vector<vector<int>>(INIT_MAPSIZE, vector<int>(INIT_MAPSIZE));
+/*
+0 -> nothing
+1 -> fog of war
+2 -> forest
+3 -> ocean
+4 -> plains
+*/
 vector<vector<int>> *objects =
     new vector<vector<int>>(INIT_MAPSIZE, vector<int>(INIT_MAPSIZE));
+/*
+0 -> nothing
+1 -> base
+2 -> enemy base
+3 -> unit
+4 -> enemy (unit)
+*/
 
 vector<string> tokenize(string input, string delimiter) {
   vector<string> output;
@@ -68,6 +82,7 @@ public:
   void process_map_update(char *input);
   void process_object_update(char *input);
   std::vector<int> last_clicked_object = {-1, -1};
+  string get_object_name(int x, int y);
 
 private:
   bool map_locked = false;
@@ -195,4 +210,19 @@ void Registry::process_object_update(char *input) {
     objects->push_back(inner_vector);
   }
   objects_locked = false;
+}
+
+string Registry::get_object_name(int x, int y) {
+  switch (objects->at(y).at(x)) {
+  case 1:
+    return "base";
+  case 2:
+    return "enemy base";
+  case 3:
+    return "unit";
+  case 4:
+    return "enemy";
+  default:
+    return "notFound";
+  }
 }

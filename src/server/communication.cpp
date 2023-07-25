@@ -63,25 +63,34 @@ Communication::Communication(int port) {
 }
 
 void Communication::send_text(int client_socket_id, string message) {
-  uint32_t len = message.length();
-  send(client_sockets[client_socket_id], &len, 4, 0);
-  send(client_sockets[client_socket_id], message.c_str(), len, 0);
+  try {
+    uint32_t len = message.length();
+    send(client_sockets[client_socket_id], &len, 4, 0);
+    send(client_sockets[client_socket_id], message.c_str(), len, 0);
+  } catch (...) {
+    perror("sending failed for some reason");
+  }
 }
 
 string Communication::receive_text(int client_socket_id) {
-  uint32_t len = 0;
-  read(client_sockets[client_socket_id], &len, 4);
-  int valread;
-  char buffer[len];
-  valread = read(client_sockets[client_socket_id], buffer, len);
-  if (valread == 0) {
-    client_sockets[client_socket_id] = 0;
-    reg->delete_user(client_socket_id);
+  try {
+    uint32_t len = 0;
+    read(client_sockets[client_socket_id], &len, 4);
+    int valread;
+    char buffer[len];
+    valread = read(client_sockets[client_socket_id], buffer, len);
+    if (valread == 0) {
+      client_sockets[client_socket_id] = 0;
+      reg->delete_user(client_socket_id);
+      return "";
+    } else {
+      buffer[valread] = '\0';
+      char *output = (char *)buffer;
+      return output;
+    }
+  } catch (...) {
+    perror("receiving failed for some reason");
     return "";
-  } else {
-    buffer[valread] = '\0';
-    char *output = (char *)buffer;
-    return output;
   }
 }
 
